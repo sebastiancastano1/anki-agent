@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
+}
+
+html,
+body {
+  background-color: theme("colors.cream");
+  color: theme("colors.espresso");
+}
+
+body {
+  background-image: radial-gradient(
+      circle at 15% 10%,
+      rgba(224, 164, 88, 0.12),
+      transparent 40%
+    ),
+    radial-gradient(circle at 85% 90%, rgba(138, 154, 123, 0.12), transparent 45%);
+  min-height: 100vh;
+}
+
+/* Cozy 3D flip support */
+.perspective {
+  perspective: 1400px;
+}
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+::selection {
+  background: rgba(201, 123, 90, 0.25);
+}
