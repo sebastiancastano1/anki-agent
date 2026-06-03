@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { Layers, Clock } from "lucide-react";
+import { EASE_COZY } from "@/lib/motion";
 
 export interface DeckSummary {
   id: string;
@@ -31,21 +33,23 @@ export function DeckList({ decks }: { decks: DeckSummary[] }) {
           key={deck.id}
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ delay: i * 0.06, ease: EASE_COZY }}
           whileHover={{ y: -4 }}
         >
           <Link
             href={`/deck/${deck.id}`}
-            className="block rounded-cozy bg-white/80 p-6 shadow-soft ring-1 ring-clay transition-shadow hover:shadow-lift"
+            className="block rounded-cozy bg-white/80 p-6 shadow-soft ring-1 ring-clay backdrop-blur-md transition-shadow duration-200 ease-cozy hover:shadow-lift"
           >
             <h3 className="text-lg font-semibold text-espresso">{deck.name}</h3>
             <p className="mt-1 line-clamp-1 text-sm text-cocoa/60">{deck.topic}</p>
             <div className="mt-4 flex items-center gap-3 text-sm">
-              <span className="rounded-full bg-clay/60 px-3 py-1 text-cocoa">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-clay/60 px-3 py-1 text-cocoa">
+                <Layers className="h-3.5 w-3.5" />
                 {deck.cardCount} tarjetas
               </span>
               {deck.dueCount > 0 && (
-                <span className="rounded-full bg-sage/20 px-3 py-1 font-medium text-sage">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-sage/20 px-3 py-1 font-medium text-sage">
+                  <Clock className="h-3.5 w-3.5" />
                   {deck.dueCount} por repasar
                 </span>
               )}

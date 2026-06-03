@@ -40,3 +40,51 @@ body {
 ::selection {
   background: rgba(201, 123, 90, 0.25);
 }
+
+/* Accessible, cozy focus ring — replaces bare outline:none everywhere. */
+:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px theme("colors.cream"),
+    0 0 0 4px rgba(201, 123, 90, 0.55);
+  border-radius: 0.75rem;
+}
+
+/* Subtle, warm scrollbar. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: theme("colors.clay") transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: theme("colors.clay");
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+/* Skeleton shimmer surface. */
+.skeleton {
+  background: linear-gradient(
+    100deg,
+    theme("colors.clay" / 40%) 30%,
+    theme("colors.sand") 50%,
+    theme("colors.clay" / 40%) 70%
+  );
+  background-size: 200% 100%;
+}
+
+/* Respect reduced-motion: neutralize animations and transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

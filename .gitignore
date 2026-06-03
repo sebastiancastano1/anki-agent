@@ -6,3 +6,10 @@ node_modules
 prisma/dev.db
 prisma/migrations
 .DS_Store
+
+# Build artifacts
+tsconfig.tsbuildinfo
+
+# Standalone HTML scratch files (not part of the app)
+modulo-ai.html
+presentacion.html
