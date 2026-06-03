@@ -18,7 +18,7 @@ export default async function StudyPage({ params }: { params: Promise<{ id: stri
     <StudySession
       deckId={deck.id}
       deckName={deck.name}
-      cards={due.map((c) => ({ id: c.id, front: c.front, back: c.back }))}
+      cards={due.map((c) => ({ id: c.id, front: c.front, back: c.back, source: c.source }))}
     />
   );
 }

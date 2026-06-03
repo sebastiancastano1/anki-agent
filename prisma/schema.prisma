@@ -11,8 +11,22 @@ model Deck {
   id        String   @id @default(cuid())
   name      String
   topic     String
+  studyDoc  String?
   createdAt DateTime @default(now())
   cards     Card[]
+  sources   Source[]
+}
+
+model Source {
+  id        String   @id @default(cuid())
+  deckId    String
+  deck      Deck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  url       String
+  title     String
+  tier      String // "academic" | "trusted" | "other"
+  createdAt DateTime @default(now())
+
+  @@index([deckId])
 }
 
 model Card {
@@ -32,6 +46,8 @@ model Card {
 
   @@index([deckId])
   @@index([dueDate])
+  // Covers the frequent "due cards for a deck" predicate (count + ordered findMany).
+  @@index([deckId, dueDate])
 }
 
 model ReviewLog {

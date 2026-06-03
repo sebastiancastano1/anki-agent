@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import typography from "@tailwindcss/typography";
 
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
@@ -21,12 +22,35 @@ const config: Config = {
         cozy: "1.5rem",
       },
       boxShadow: {
-        soft: "0 8px 30px rgba(91, 70, 54, 0.12)",
-        lift: "0 14px 40px rgba(91, 70, 54, 0.18)",
+        // Layered, Apple-like elevation. Ambient + soft key shadow.
+        hairline: "0 0 0 1px rgba(91, 70, 54, 0.06)",
+        soft: "0 1px 2px rgba(91, 70, 54, 0.05), 0 8px 30px rgba(91, 70, 54, 0.10)",
+        lift: "0 2px 6px rgba(91, 70, 54, 0.08), 0 14px 40px rgba(91, 70, 54, 0.16)",
+        press: "0 1px 2px rgba(91, 70, 54, 0.10)",
+      },
+      transitionTimingFunction: {
+        cozy: "cubic-bezier(0.22, 1, 0.36, 1)",
+      },
+      letterSpacing: {
+        tightest: "-0.03em",
+      },
+      keyframes: {
+        shimmer: {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+        "pulse-soft": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.55" },
+        },
+      },
+      animation: {
+        shimmer: "shimmer 1.8s ease-in-out infinite",
+        "pulse-soft": "pulse-soft 1.6s ease-in-out infinite",
       },
     },
   },
-  plugins: [],
+  plugins: [typography],
 };
 
 export default config;

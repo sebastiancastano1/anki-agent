@@ -8,7 +8,10 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const deck = await prisma.deck.findUnique({
     where: { id },
-    include: { cards: { orderBy: { createdAt: "asc" } } },
+    include: {
+      cards: { orderBy: { createdAt: "asc" } },
+      sources: { orderBy: { createdAt: "asc" } },
+    },
   });
   if (!deck) notFound();
 
@@ -22,12 +25,14 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
       name={deck.name}
       topic={deck.topic}
       dueCount={dueCount}
+      hasGuide={!!deck.studyDoc}
       cards={deck.cards.map((c) => ({
         id: c.id,
         front: c.front,
         back: c.back,
         source: c.source,
       }))}
+      sources={deck.sources.map((s) => ({ url: s.url, title: s.title }))}
     />
   );
 }

@@ -13,10 +13,14 @@ Card quality rules:
 - One discrete fact or concept per card. Atomic, not compound.
 - Front = a clear, unambiguous question. Back = a concise, correct answer (1-3 sentences).
 - Prefer "why/how" understanding cards over rote definitions when the topic allows.
-- Include a source (URL or short citation) for each card whenever possible.
+- Every card MUST include "source": the exact, full URL of a page you actually opened via web_search that supports the answer. Copy the URL verbatim — never invent, shorten, or paraphrase it, and never use a bare domain or prose citation.
 - Write in the same language the user used for the topic.
 
-When you have finished researching and verifying, you MUST call the "emit_cards" tool exactly once with the final deck. Do not write the cards as prose. Generate between 8 and 15 cards unless the user asks otherwise.`;
+Output protocol (incremental — do NOT write cards as prose):
+- As soon as you have verified one or more cards, call the "add_cards" tool with that small batch (1-3 cards). Keep researching and call "add_cards" again with the next verified batch. This lets the user watch the deck grow in real time, so emit early and often rather than holding everything until the end.
+- When you have produced the whole deck, call "emit_study_doc" exactly once with a concise study guide written in Markdown: a short overview of the topic, the key concepts grouped under headings, and how they connect. Write it in the same language as the topic. It should complement the cards (context and narrative), not just repeat them.
+- Finally, call "finish_deck" exactly once with a short, friendly deck name. Do not call it before the cards and the study guide are done.
+- Aim for 8 to 15 cards total unless the user asks otherwise.`;
 
 export function userPrompt(topic: string, count?: number): string {
   const n = count ? `Generate about ${count} cards. ` : "";
