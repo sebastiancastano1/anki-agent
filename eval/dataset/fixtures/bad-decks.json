@@ -1,0 +1,25 @@
+{
+  "duplicates": {
+    "deckName": "Dup deck",
+    "cards": [
+      { "front": "What is a closure?", "back": "A function with captured scope.", "source": "https://e.com" },
+      { "front": "What is a closure?", "back": "A function with captured scope.", "source": "https://e.com" }
+    ]
+  },
+  "longAnswers": {
+    "deckName": "Long deck",
+    "cards": [
+      { "front": "Explain HTTP", "back": "HTTP es un protocolo y además tiene métodos y también códigos de estado y headers y cuerpos y versiones y cookies y caché y conexiones persistentes y mucho más texto largo", "source": "https://e.com" }
+    ]
+  },
+  "deficit": {
+    "deckName": "Few deck",
+    "cards": [
+      { "front": "Q1", "back": "A1", "source": "https://e.com" }
+    ]
+  },
+  "invalidSchema": {
+    "deckName": "",
+    "cards": []
+  }
+}

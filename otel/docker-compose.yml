@@ -1,0 +1,62 @@
+# Stack de observabilidad para anki-agent (porta el poc-min de LIT-22).
+# Levantar: docker compose up -d
+#   - OTel Collector: OTLP HTTP :4318 / gRPC :4317  (la app exporta aquí)
+#   - Tempo (trazas)      UI vía Grafana
+#   - Prometheus (métricas) :9090
+#   - Grafana (dashboards)  :3002  (login anónimo; la app Next.js usa :3000)
+services:
+  otel-collector:
+    # Necesita el `sum` connector (no presente en 0.111.0). Versión reciente del
+    # contrib que sí lo trae; mismo distro que el poc-min de LIT-22.
+    image: otel/opentelemetry-collector-contrib:0.123.0
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4318:4318" # OTLP HTTP (TRACELOOP_BASE_URL)
+      - "4317:4317" # OTLP gRPC
+      - "8889:8889" # Prometheus exporter (métricas derivadas)
+    depends_on:
+      - tempo
+
+  tempo:
+    image: grafana/tempo:2.6.0
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo # trazas persistentes (sobreviven a compose down)
+    ports:
+      - "3200:3200" # Tempo HTTP API
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus # métricas persistentes (retención 30d)
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana # estado propio de Grafana (anotaciones, ediciones)
+    ports:
+      - "3002:3000" # Grafana UI (la app Next.js usa :3000, Langfuse :3001)
+    depends_on:
+      - tempo
+      - prometheus
+
+volumes:
+  tempo_data:
+  prometheus_data:
+  grafana_data:

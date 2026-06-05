@@ -13,3 +13,13 @@ tsconfig.tsbuildinfo
 # Standalone HTML scratch files (not part of the app)
 modulo-ai.html
 presentacion.html
+
+# Local agent config / scratch (no parte de la app)
+.claude/
+OPTIMIZATION-LOG.md
+
+# Artefacto regenerable del backfill de Prometheus (ver scripts/backfill-prometheus-from-langfuse.py)
+otel/backfill.openmetrics
+
+# Eval harness raw artifacts
+eval/results/

@@ -1,0 +1,42 @@
+# Tempo monolítico, almacenamiento local en disco (suficiente para dev).
+# Habilitamos el metrics-generator con el procesador local-blocks para poder
+# correr TraceQL metrics (p.ej. sum(span.app.cost.total)) desde Grafana.
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+
+ingester:
+  trace_idle_period: 10s
+  max_block_duration: 30s
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal
+
+metrics_generator:
+  processor:
+    local_blocks:
+      flush_to_storage: true
+  storage:
+    path: /var/tempo/generator/wal
+  traces_storage:
+    path: /var/tempo/generator/traces
+
+query_frontend:
+  metrics:
+    max_duration: 24h
+
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [local-blocks]

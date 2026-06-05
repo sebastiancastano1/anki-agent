@@ -79,6 +79,20 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 npm test
 ```
 
+### Observability (cost & tracing)
+
+Every model call is traced with OpenTelemetry (OpenLLMetry). Token cost is computed in
+the OTel Collector, not in the app. To inspect runs locally:
+
+```bash
+cd otel && docker compose up -d   # Collector + Tempo + Prometheus + Grafana
+```
+
+Set `TRACELOOP_BASE_URL=http://localhost:4318` in `.env`, generate a deck, then open
+Grafana at [http://localhost:3000](http://localhost:3000) to see per-run cost, p95 latency,
+cache-hit rate, and the full `research_pipeline → research_turn_N → anthropic.chat` trace.
+Details in [`otel/README.md`](otel/README.md).
+
 ### Tech stack
 
 | Layer | Technology |
@@ -89,6 +103,7 @@ npm test
 | AI Agent | Anthropic Claude (`claude-sonnet-4-6`) with native `web_search` |
 | Database | SQLite via Prisma |
 | Testing | Vitest |
+| Observability | OpenTelemetry + OpenLLMetry → Tempo / Prometheus / Grafana |
 
 ---
 
@@ -153,6 +168,20 @@ Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 npm test
 ```
 
+### Observabilidad (costo y trazabilidad)
+
+Cada llamada al modelo se traza con OpenTelemetry (OpenLLMetry). El costo en tokens se
+calcula en el OTel Collector, no en la app. Para inspeccionar los runs en local:
+
+```bash
+cd otel && docker compose up -d   # Collector + Tempo + Prometheus + Grafana
+```
+
+Pon `TRACELOOP_BASE_URL=http://localhost:4318` en `.env`, genera un mazo y abre Grafana en
+[http://localhost:3000](http://localhost:3000): verás costo por run, p95 de latencia,
+cache-hit rate y la traza completa `research_pipeline → research_turn_N → anthropic.chat`.
+Más detalles en [`otel/README.md`](otel/README.md).
+
 ### Stack tecnológico
 
 | Capa | Tecnología |
@@ -163,3 +192,4 @@ npm test
 | Agente IA | Anthropic Claude (`claude-sonnet-4-6`) con `web_search` nativo |
 | Base de datos | SQLite con Prisma |
 | Tests | Vitest |
+| Observabilidad | OpenTelemetry + OpenLLMetry → Tempo / Prometheus / Grafana |

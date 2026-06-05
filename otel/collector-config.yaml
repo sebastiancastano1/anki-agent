@@ -1,0 +1,172 @@
+# OTel Collector — recibe spans de la app, calcula el COSTO aquí (OTTL),
+# y reparte: trazas → Tempo, métricas (spanmetrics + costo) → Prometheus.
+# El precio vive en este archivo: cambiar tarifa = editar YAML + reiniciar.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch: {}
+
+  # Cálculo de costo para claude-sonnet-4-6 (USD por 1M tokens):
+  #   input $3 · output $15 · cache-write $3.75 · cache-read $0.30
+  # Anthropic/Traceloop reportan input_tokens SOLO como no-cacheados, así que
+  # se facturan input, cache-write y cache-read como líneas separadas.
+  transform/llm_cost:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          # Solo actuamos sobre spans LLM (los que traen output_tokens).
+          # Inicializamos cada componente en 0 y lo sobrescribimos si hay tokens,
+          # porque OTTL en esta versión no soporta el operador `??`.
+          - set(attributes["app.cost.input"], 0.0)
+            where attributes["gen_ai.usage.output_tokens"] != nil
+          - set(attributes["app.cost.output"], 0.0)
+            where attributes["gen_ai.usage.output_tokens"] != nil
+          - set(attributes["app.cost.cache_write"], 0.0)
+            where attributes["gen_ai.usage.output_tokens"] != nil
+          - set(attributes["app.cost.cache_read"], 0.0)
+            where attributes["gen_ai.usage.output_tokens"] != nil
+          - set(attributes["app.cost.input"],
+                Double(attributes["gen_ai.usage.input_tokens"]) / 1000000.0 * 3.0)
+            where attributes["gen_ai.usage.input_tokens"] != nil
+          - set(attributes["app.cost.output"],
+                Double(attributes["gen_ai.usage.output_tokens"]) / 1000000.0 * 15.0)
+            where attributes["gen_ai.usage.output_tokens"] != nil
+          - set(attributes["app.cost.cache_write"],
+                Double(attributes["gen_ai.usage.cache_creation_input_tokens"]) / 1000000.0 * 3.75)
+            where attributes["gen_ai.usage.cache_creation_input_tokens"] != nil
+          - set(attributes["app.cost.cache_read"],
+                Double(attributes["gen_ai.usage.cache_read_input_tokens"]) / 1000000.0 * 0.30)
+            where attributes["gen_ai.usage.cache_read_input_tokens"] != nil
+          # Total = suma plana (los 4 componentes ya existen en spans LLM).
+          - set(attributes["app.cost.total"],
+                attributes["app.cost.input"]
+              + attributes["app.cost.output"]
+              + attributes["app.cost.cache_write"]
+              + attributes["app.cost.cache_read"])
+            where attributes["gen_ai.usage.output_tokens"] != nil
+
+connectors:
+  # COSTO como métrica sumable → Prometheus. (Tempo 2.6/2.7 no soporta
+  # `sum_over_time` sobre atributos en TraceQL metrics, así que el costo se agrega
+  # aquí con el `sum` connector del contrib — requiere imagen >= ~0.116.)
+  # Produce `gen_ai_cost_usd_total`, consultable y sumable en Prometheus.
+  sum:
+    spans:
+      # --- Costo (USD) ---
+      # Total + desglose por componente, todos con la dimensión `modelo` para
+      # poder agrupar costo por modelo en Grafana. Cada componente ya existe en
+      # los spans LLM (transform/llm_cost los inicializa en 0).
+      gen_ai_cost_usd_total:
+        source_attribute: app.cost.total
+        conditions:
+          - 'attributes["app.cost.total"] != nil'
+        attributes:
+          - key: gen_ai.response.model
+            default_value: unknown
+      gen_ai_cost_input_usd_total:
+        source_attribute: app.cost.input
+        conditions:
+          - 'attributes["app.cost.input"] != nil'
+        attributes:
+          - key: gen_ai.response.model
+            default_value: unknown
+      gen_ai_cost_output_usd_total:
+        source_attribute: app.cost.output
+        conditions:
+          - 'attributes["app.cost.output"] != nil'
+        attributes:
+          - key: gen_ai.response.model
+            default_value: unknown
+      gen_ai_cost_cache_write_usd_total:
+        source_attribute: app.cost.cache_write
+        conditions:
+          - 'attributes["app.cost.cache_write"] != nil'
+        attributes:
+          - key: gen_ai.response.model
+            default_value: unknown
+      gen_ai_cost_cache_read_usd_total:
+        source_attribute: app.cost.cache_read
+        conditions:
+          - 'attributes["app.cost.cache_read"] != nil'
+        attributes:
+          - key: gen_ai.response.model
+            default_value: unknown
+      # --- Tokens (conteo) ---
+      # input_tokens = SOLO no-cacheados (así los reporta Anthropic/Traceloop).
+      gen_ai_tokens_input_total:
+        source_attribute: gen_ai.usage.input_tokens
+        conditions:
+          - 'attributes["gen_ai.usage.input_tokens"] != nil'
+        attributes:
+          - key: gen_ai.response.model
+            default_value: unknown
+      gen_ai_tokens_output_total:
+        source_attribute: gen_ai.usage.output_tokens
+        conditions:
+          - 'attributes["gen_ai.usage.output_tokens"] != nil'
+        attributes:
+          - key: gen_ai.response.model
+            default_value: unknown
+      gen_ai_tokens_cache_read_total:
+        source_attribute: gen_ai.usage.cache_read_input_tokens
+        conditions:
+          - 'attributes["gen_ai.usage.cache_read_input_tokens"] != nil'
+        attributes:
+          - key: gen_ai.response.model
+            default_value: unknown
+      gen_ai_tokens_cache_write_total:
+        source_attribute: gen_ai.usage.cache_creation_input_tokens
+        conditions:
+          - 'attributes["gen_ai.usage.cache_creation_input_tokens"] != nil'
+        attributes:
+          - key: gen_ai.response.model
+            default_value: unknown
+
+  # Métricas RED (rate/errors/duration) por span, con dimensiones seguras → Prometheus.
+  spanmetrics:
+    histogram:
+      explicit:
+        buckets: [100ms, 250ms, 500ms, 1s, 2s, 5s, 10s, 30s, 60s]
+    dimensions:
+      - name: app.gen_ai.cache_hit
+      - name: gen_ai.response.model
+    metrics_flush_interval: 15s
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    enable_open_metrics: true
+
+  # --- Fan-out a Langfuse (segunda fuente, observabilidad LLM) ---
+  # El MISMO span va también a Langfuse, sin tocar la app. Demuestra el
+  # desacople instrumentación <-> backend. Langfuse exige auth: header Basic
+  # con base64(public_key:secret_key), inyectado por env (LANGFUSE_OTEL_AUTH).
+  # Solo activo cuando se levanta el stack con docker-compose.langfuse.yml.
+  otlphttp/langfuse:
+    endpoint: http://langfuse-web:3000/api/public/otel
+    headers:
+      Authorization: "Basic ${env:LANGFUSE_OTEL_AUTH:-}"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [transform/llm_cost, batch]
+      # Si LANGFUSE_OTEL_AUTH está vacío (stack Langfuse no levantado), el
+      # exporter falla silenciosamente por span y el resto del fan-out sigue.
+      exporters: [otlp/tempo, otlphttp/langfuse, spanmetrics, sum]
+    metrics:
+      receivers: [spanmetrics, sum]
+      processors: [batch]
+      exporters: [prometheus]

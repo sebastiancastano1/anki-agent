@@ -1,0 +1,14 @@
+{
+  "version": "2026-06-05",
+  "card": {
+    "factual_accuracy": 0.30,
+    "atomicity": 0.20,
+    "clarity": 0.15,
+    "retrieval_value": 0.15,
+    "answerability": 0.05
+  },
+  "deck": {
+    "coverage": 0.10,
+    "redundancy_penalty": 0.05
+  }
+}

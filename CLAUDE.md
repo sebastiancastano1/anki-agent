@@ -48,10 +48,23 @@ tarjetas a partir de un tema.
   interval a 0; ease nunca baja de 1.3.
 - Sin login ni multiusuario (YAGNI).
 
+## Observabilidad (OpenTelemetry / OpenLLMetry)
+- Instrumentación con `@traceloop/node-server-sdk`. Init en `instrumentation.node.ts`
+  (cargado por `instrumentation.ts` solo en runtime nodejs). Hay que pasar
+  `instrumentModules: { anthropic: Anthropic }` y mantener el SDK en
+  `serverExternalPackages` (`next.config.ts`) o no se generan spans.
+- Estructura del trace por run: `research_pipeline` (workflow, `app/api/research/route.ts`)
+  → `research_turn_N` (task por turno, `researchAgent.ts`) → `anthropic.chat` (auto-span con
+  `gen_ai.usage.*`). El turno cuelga atributos custom `app.gen_ai.cache_hit` y `prompt_hash`.
+- **El costo se calcula en el OTel Collector** (OTTL en `otel/collector-config.yaml`), no en
+  el código. Cambiar tarifa = editar ese YAML. Stack completo (Collector/Tempo/Prometheus/
+  Grafana) en `otel/` — ver `otel/README.md`. Variables: `TRACELOOP_BASE_URL`, `OTEL_SERVICE_NAME`.
+
 ## Desarrollo
 ```bash
 npm install
 npm run db:generate && npm run db:push   # crea SQLite
 npm run dev                              # requiere ANTHROPIC_API_KEY en .env
 npm test                                 # tests de SM-2 y schema
+cd otel && docker compose up -d          # opcional: stack de telemetría (Grafana :3000)
 ```

@@ -1,0 +1,58 @@
+[
+  {
+    "id": "python-generators-basic-001",
+    "topic": "Generadores en Python",
+    "count": 8,
+    "tags": ["python", "programming", "basic"],
+    "difficulty": "basic",
+    "notes": "Enfocar en uso práctico de yield.",
+    "expectedCoverage": ["yield", "evaluación perezosa (lazy)", "generator expressions", "StopIteration"],
+    "referenceFacts": [
+      "yield pausa la función y devuelve un valor, reanudando en la siguiente llamada a next().",
+      "Los generadores son iteradores perezosos (lazy).",
+      "Una generator expression usa paréntesis: (x for x in xs)."
+    ]
+  },
+  {
+    "id": "photosynthesis-basic-001",
+    "topic": "La fotosíntesis",
+    "count": 10,
+    "tags": ["biology", "science", "basic"],
+    "difficulty": "basic",
+    "expectedCoverage": ["reacciones luminosas", "ciclo de Calvin", "clorofila", "ATP", "CO2"],
+    "referenceFacts": [
+      "La fotosíntesis convierte CO2 y agua en glucosa y oxígeno usando luz.",
+      "Ocurre en los cloroplastos; la clorofila captura la luz.",
+      "El ciclo de Calvin no requiere luz directamente (reacciones independientes de la luz)."
+    ]
+  },
+  {
+    "id": "french-revolution-inter-001",
+    "topic": "Causas de la Revolución Francesa",
+    "count": 10,
+    "tags": ["history", "intermediate"],
+    "difficulty": "intermediate",
+    "expectedCoverage": ["crisis fiscal", "Estados Generales", "ideas de la Ilustración", "precio del pan"]
+  },
+  {
+    "id": "http-status-codes-basic-001",
+    "topic": "Códigos de estado HTTP",
+    "count": 12,
+    "tags": ["web", "networking", "basic"],
+    "difficulty": "basic",
+    "referenceFacts": [
+      "200 OK indica éxito.",
+      "404 Not Found: el recurso no existe.",
+      "500 Internal Server Error: fallo del servidor.",
+      "301 es redirección permanente; 302 temporal."
+    ]
+  },
+  {
+    "id": "big-o-notation-inter-001",
+    "topic": "Notación Big-O",
+    "count": 8,
+    "tags": ["cs", "algorithms", "intermediate"],
+    "difficulty": "intermediate",
+    "expectedCoverage": ["O(1)", "O(n)", "O(log n)", "O(n^2)", "peor caso"]
+  }
+]
