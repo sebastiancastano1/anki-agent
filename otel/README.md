@@ -8,7 +8,7 @@ una sola vez con OpenLLMetry (Traceloop JS); el **costo se calcula en el Collect
 app (Next.js) ──OTLP/HTTP:4318──▶ otel-collector ──┬─▶ tempo        (trazas)
    withWorkflow → withTask → anthropic.messages     │   transform OTTL: costo AQUÍ
                                                      └─▶ prometheus   (métricas)
-                                                              └─▶ grafana :3000
+                                                              └─▶ grafana :3002
 ```
 
 ## Levantar el stack
@@ -19,15 +19,20 @@ docker compose up -d
 ```
 
 Servicios:
-- **Grafana** → http://localhost:3000 (login anónimo, rol Admin). Dashboard
+- **Grafana** → http://localhost:3002 (login anónimo, rol Admin). Dashboard
   *"anki-agent · LLM cost & traces"* ya provisionado.
 - **Prometheus** → http://localhost:9090
 - **Tempo** (vía datasource de Grafana, Explore)
 - **Collector OTLP** → `http://localhost:4318` (valor de `TRACELOOP_BASE_URL`)
 
-> **Nota:** este stack usa los puertos estándar (4317/4318/9090/3000/3200), los mismos
-> que el `poc-min` de LIT-22. Si tienes ese POC corriendo, bájalo (`docker compose down`)
-> o remapea los puertos en `docker-compose.yml` antes de levantar este.
+> **Nota:** Grafana se publica en `:3002` para dejar libre el `:3000` a la app Next.js
+> (Langfuse usa `:3001`). El resto son los puertos estándar (4317/4318/9090/3200). Si
+> tienes el `poc-min` de LIT-22 corriendo, bájalo o remapea antes de levantar este.
+
+> **Persistencia:** Tempo (`tempo_data`), Prometheus (`prometheus_data`, retención 30d) y
+> Grafana (`grafana_data`) usan volúmenes nombrados, así que las trazas y métricas
+> **sobreviven a `docker compose down`**. Para borrarlas a propósito usa `down -v`
+> (⚠️ elimina también los volúmenes de Langfuse).
 
 ## Conectar la app
 
@@ -52,7 +57,7 @@ Además de Grafana (métricas + trazas), puedes mandar **el mismo span** a Langf
 vía *fan-out del Collector* (exporter `otlphttp/langfuse`), sin tocar la app:
 
 ```
-                                   ┌─▶ tempo + prometheus → grafana :3000   (fuente 1)
+                                   ┌─▶ tempo + prometheus → grafana :3002   (fuente 1)
 app ──OTLP:4318──▶ otel-collector ─┤
                                    └─▶ langfuse-web :3001                    (fuente 2)
 ```
@@ -79,7 +84,7 @@ Genera un mazo en `/research` y verás la MISMA traza en Grafana (Tempo) y en
 Langfuse (sección *Tracing*). Mientras `LANGFUSE_OTEL_AUTH` esté vacío, el
 exporter falla en silencio por span y el resto del fan-out (Tempo/Prometheus) sigue.
 
-> **Puertos:** Langfuse UI en `:3001` (Grafana usa `:3000`). El stack añade
+> **Puertos:** Langfuse UI en `:3001`, app Next.js en `:3000`, Grafana en `:3002`. El stack añade
 > postgres/clickhouse/redis/minio — es pesado, levántalo solo cuando lo uses.
 
 ## Cambiar precios

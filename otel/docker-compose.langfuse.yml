@@ -29,7 +29,7 @@ services:
       minio: { condition: service_healthy }
       redis: { condition: service_healthy }
     ports:
-      - "3001:3000"   # UI de Langfuse (Grafana ya usa 3000)
+      - "3001:3000"   # UI de Langfuse (app Next.js usa 3000, Grafana 3002)
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/postgres
       SALT: ${LANGFUSE_SALT}
