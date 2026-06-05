@@ -35,6 +35,7 @@ const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? "claude-opus-4-8";
 const REPEAT = Number(arg("repeat", "1"));
 const DRY_RUN = hasFlag("dry-run");
 const CONCURRENCY = Number(arg("concurrency", "3"));
+const LIMIT = arg("limit") ? Number(arg("limit")) : undefined;
 
 // ---- juez: real o mock (dry-run) -----------------------------------------
 const MOCK_CARD = JSON.stringify({
@@ -194,7 +195,7 @@ async function main() {
   const edge = JSON.parse(
     readFileSync(join(process.cwd(), "eval/dataset/edge-cases.json"), "utf8")
   ) as EvalItem[];
-  const items = [...golden, ...edge];
+  const items = (LIMIT ? [...golden, ...edge].slice(0, LIMIT) : [...golden, ...edge]);
 
   console.log(
     `Eval: model=${AGENT_MODEL} judge=${JUDGE_MODEL} run=${RUN_NAME} ` +
