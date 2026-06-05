@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runAgent } from "./runAgent";
 import { runDeterministic } from "./deterministic";
@@ -40,6 +40,7 @@ const CONCURRENCY = Number(arg("concurrency", "3"));
 const LIMIT = arg("limit") ? Number(arg("limit")) : undefined;
 const ANNOTATE_SAMPLE = Number(arg("annotate-sample", "0"));
 const ANNOTATION_QUEUE_ID = arg("annotation-queue-id") ?? process.env.LANGFUSE_ANNOTATION_QUEUE_ID;
+const SKIP_EXISTING = hasFlag("skip-existing");
 
 // ---- juez: real o mock (dry-run) -----------------------------------------
 const MOCK_CARD = JSON.stringify({
@@ -204,7 +205,15 @@ async function main() {
   const edge = JSON.parse(
     readFileSync(join(process.cwd(), "eval/dataset/edge-cases.json"), "utf8")
   ) as EvalItem[];
-  const items = (LIMIT ? [...golden, ...edge].slice(0, LIMIT) : [...golden, ...edge]);
+  const all = LIMIT ? [...golden, ...edge].slice(0, LIMIT) : [...golden, ...edge];
+  // --skip-existing: omite ítems cuyo artefacto ya existe para este run
+  // (reanuda tras un fallo parcial sin re-generar lo ya logrado).
+  const items = SKIP_EXISTING
+    ? all.filter(
+        (it) =>
+          !existsSync(join(process.cwd(), "eval/results", RUN_NAME, `${it.id}.json`))
+      )
+    : all;
 
   console.log(
     `Eval: model=${AGENT_MODEL} judge=${JUDGE_MODEL} run=${RUN_NAME} ` +
