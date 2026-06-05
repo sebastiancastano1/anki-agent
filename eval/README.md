@@ -22,14 +22,15 @@ npm run eval -- --model claude-opus-4-8 --run-name opus-candidate
 # Smoke test sin Langfuse (juez mock):
 npm run eval -- --dry-run --run-name smoke
 
-# Reducir ruido del juez:
+# Reintentos del juez (toma el primer juicio válido):
 npm run eval -- --model claude-sonnet-4-6 --run-name baseline --repeat 3
 ```
 
 ## Flags
 - `--model <id>`: modelo del agente bajo prueba.
 - `--run-name <name>`: nombre del run en Langfuse.
-- `--repeat <n>`: nº de juicios por tarjeta (default 1).
+- `--repeat <n>`: nº máximo de intentos del juez por tarjeta; toma el primer juicio
+  válido (reintenta si el JSON no parsea). Default 1. (No promedia aún — ver Limitaciones.)
 - `--concurrency <n>`: ítems en paralelo (default 3).
 - `--dry-run`: juez mock, no sube a Langfuse.
 - `EVAL_JUDGE_MODEL` (env): modelo del juez (default `claude-opus-4-8`).
@@ -48,3 +49,5 @@ output, scores, provenance del juez (modelo, cliVersion, rubricVersion). Gitigno
   prompt determinista + `--repeat` para promediar. `temperature: 0` se registra como
   intención en la provenance.
 - `schemaRetries` del agente no está expuesto por el generador todavía (queda en 0).
+- `--repeat` actualmente toma el **primer juicio válido**, no promedia N juicios. El
+  promedio para reducir varianza queda como extensión (el código está preparado para ello).
