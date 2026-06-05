@@ -26,8 +26,23 @@ npm run eval -- --dry-run --run-name smoke
 npm run eval -- --model claude-sonnet-4-6 --run-name baseline --repeat 3
 ```
 
+## Runners de generación
+- `--runner sdk` (default): agente real vía API de Anthropic (gasta créditos; liga
+  trace OTel + costo real a Langfuse).
+- `--runner cli`: agente vía `claude -p` (Claude Code CLI). Usa la **suscripción**
+  de Claude Code en vez de créditos de API — útil cuando no hay saldo. El modelo
+  devuelve el deck como JSON (no usa las tools nativas); búsqueda con la tool
+  WebSearch del CLI. Sin trace OTel ni costo del Collector (`traceId` null; el
+  costo lo reporta el propio CLI). Requiere `claude` logueado con suscripción y
+  **sin** `ANTHROPIC_API_KEY` activa (el runner la quita del entorno del hijo).
+
+```bash
+npm run eval -- --model claude-haiku-4-5 --runner cli --run-name haiku-cli
+```
+
 ## Flags
 - `--model <id>`: modelo del agente bajo prueba.
+- `--runner sdk|cli`: backend de generación (ver arriba). Default `sdk`.
 - `--run-name <name>`: nombre del run en Langfuse.
 - `--repeat <n>`: nº máximo de intentos del juez por tarjeta; toma el primer juicio
   válido (reintenta si el JSON no parsea). Default 1. (No promedia aún — ver Limitaciones.)

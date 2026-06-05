@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runAgent } from "./runAgent";
+import { runAgentViaCli } from "./runAgentCli";
 import { runDeterministic } from "./deterministic";
 import {
   judgeCard,
@@ -32,6 +33,9 @@ function arg(name: string, fallback?: string): string | undefined {
 const hasFlag = (name: string) => process.argv.includes(`--${name}`);
 
 const AGENT_MODEL = arg("model", "claude-sonnet-4-6")!;
+// Runner de generación: "sdk" (default, API de Anthropic) o "cli" (claude -p,
+// usa la suscripción de Claude Code en vez de créditos de API).
+const RUNNER = (arg("runner", "sdk") as "sdk" | "cli");
 const RUN_NAME = arg("run-name", `run-${AGENT_MODEL}`)!;
 const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? "claude-opus-4-8";
 const REPEAT = Number(arg("repeat", "1"));
@@ -105,7 +109,10 @@ async function processItem(item: EvalItem): Promise<ItemSummary> {
   const resultsDir = join(process.cwd(), "eval/results", RUN_NAME);
   mkdirSync(resultsDir, { recursive: true });
 
-  const agentRes = await runAgent(item.topic, item.count, AGENT_MODEL, item.id);
+  const agentRes =
+    RUNNER === "cli"
+      ? await runAgentViaCli(item.topic, item.count, AGENT_MODEL)
+      : await runAgent(item.topic, item.count, AGENT_MODEL, item.id);
   const determ = runDeterministic(agentRes.deck, item.count);
 
   const provenance: JudgeProvenance = {
@@ -216,7 +223,7 @@ async function main() {
     : all;
 
   console.log(
-    `Eval: model=${AGENT_MODEL} judge=${JUDGE_MODEL} run=${RUN_NAME} ` +
+    `Eval: model=${AGENT_MODEL} runner=${RUNNER} judge=${JUDGE_MODEL} run=${RUN_NAME} ` +
       `items=${items.length} dryRun=${DRY_RUN}`
   );
 
