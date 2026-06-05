@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { CLI_SYSTEM_PROMPT, userPrompt } from "../../lib/agent/prompts";
 import { cardSetSchema } from "../../lib/agent/schema";
 import { extractJson } from "./judge";
-import type { AgentRunResult, GeneratedCardSet } from "./types";
+import type { AgentRunResult, GeneratedCardSet, RunUsage } from "./types";
 
 /**
  * Runner ALTERNATIVO de generación vía el Claude Code CLI (`claude -p`), que usa
@@ -20,14 +20,35 @@ import type { AgentRunResult, GeneratedCardSet } from "./types";
  *    reporta el propio CLI (`total_cost_usd`), no el Collector.
  */
 
+type CliModelUsage = {
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadInputTokens?: number;
+  webSearchRequests?: number;
+};
+
 type CliEnvelope = {
   type: string;
   is_error?: boolean;
   result?: string;
   num_turns?: number;
   total_cost_usd?: number;
-  modelUsage?: Record<string, { webSearchRequests?: number }>;
+  modelUsage?: Record<string, CliModelUsage>;
 };
+
+/** Suma el uso por-modelo del envelope del CLI a un RunUsage. */
+function usageFromEnvelope(env: CliEnvelope): RunUsage {
+  const models = Object.values(env.modelUsage ?? {});
+  const sum = (pick: (u: CliModelUsage) => number | undefined) =>
+    models.reduce((n, u) => n + (pick(u) ?? 0), 0);
+  return {
+    costUsd: env.total_cost_usd ?? 0,
+    inputTokens: sum((u) => u.inputTokens),
+    outputTokens: sum((u) => u.outputTokens),
+    cacheReadTokens: sum((u) => u.cacheReadInputTokens),
+    webSearches: sum((u) => u.webSearchRequests),
+  };
+}
 
 function stripApiAuth(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const copy = { ...env };
@@ -96,6 +117,7 @@ export async function runAgentViaCli(
   let deck: GeneratedCardSet | null = null;
   let searches = 0;
   let turns = 0;
+  let usage: RunUsage | undefined;
 
   try {
     const res = await runClaudeCli(CLI_SYSTEM_PROMPT, userPrompt(topic, count), model);
@@ -108,10 +130,8 @@ export async function runAgentViaCli(
       throw new Error(`CLI sin resultado válido: ${res.stdout.slice(0, 300)}`);
     }
     turns = envelope.num_turns ?? 0;
-    searches = Object.values(envelope.modelUsage ?? {}).reduce(
-      (n, u) => n + (u.webSearchRequests ?? 0),
-      0
-    );
+    usage = usageFromEnvelope(envelope);
+    searches = usage.webSearches;
     const parsed = cardSetSchema.parse(extractJson(envelope.result));
     deck = { deckName: parsed.deckName, cards: parsed.cards };
   } catch (err) {
@@ -126,5 +146,6 @@ export async function runAgentViaCli(
     // El runner CLI no produce un span OTel propio: no hay trace real que ligar.
     traceId: null,
     events,
+    usage,
   };
 }

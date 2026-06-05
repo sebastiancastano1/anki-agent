@@ -175,6 +175,16 @@ async function processItem(item: EvalItem): Promise<ItemSummary> {
   scores.push({ name: "count_ratio", value: determ.count.ratio });
   scores.push({ name: "near_duplicates", value: determ.duplication.nearDuplicatePairs.length });
 
+  // Costo/uso reportado por el runner CLI (claude -p), que no liga trace OTel:
+  // lo publicamos como scores para mantener el costo en la comparación de runs.
+  if (agentRes.usage) {
+    scores.push({ name: "cli.cost_usd", value: agentRes.usage.costUsd });
+    scores.push({ name: "cli.input_tokens", value: agentRes.usage.inputTokens });
+    scores.push({ name: "cli.output_tokens", value: agentRes.usage.outputTokens });
+    scores.push({ name: "cli.cache_read_tokens", value: agentRes.usage.cacheReadTokens });
+    scores.push({ name: "cli.web_searches", value: agentRes.usage.webSearches });
+  }
+
   // artefacto crudo
   writeFileSync(
     join(resultsDir, `${item.id}.json`),
