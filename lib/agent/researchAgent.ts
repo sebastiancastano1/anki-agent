@@ -15,7 +15,7 @@ import {
 } from "./schema";
 
 const MODEL = "claude-sonnet-4-6";
-const MAX_TURNS = 20;
+const MAX_TURNS = 12;
 
 export type ResearchPhase = "searching" | "reading" | "generating" | "writing";
 
@@ -83,7 +83,7 @@ export async function* runResearchAgent(
   const client = new Anthropic({ apiKey });
 
   const tools: Anthropic.Tool[] | any[] = [
-    { type: "web_search_20250305", name: "web_search", max_uses: 8 },
+    { type: "web_search_20250305", name: "web_search", max_uses: 4 },
     {
       name: "add_cards",
       description:
