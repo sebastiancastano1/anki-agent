@@ -24,6 +24,10 @@ export async function upsertDataset(
       datasetName: DATASET_NAME,
       id: item.id, // mismo id => upsert, no duplica
       input: { topic: item.topic, count: item.count },
+      expectedOutput: {
+        referenceFacts: item.referenceFacts ?? [],
+        expectedCoverage: item.expectedCoverage ?? [],
+      },
       metadata: {
         tags: item.tags,
         difficulty: item.difficulty,
@@ -35,15 +39,18 @@ export async function upsertDataset(
 
 export type ScoreInput = {
   name: string;
-  value: number;
+  value: number | string;
   comment?: string;
   /** confianza del juez, anexada al comment para auditoría */
   confidence?: string;
+  /** tipo de score en Langfuse; default NUMERIC */
+  dataType?: "NUMERIC" | "CATEGORICAL" | "BOOLEAN";
 };
 
 /**
- * Liga un ítem del dataset a un trace del run y publica sus scores.
- * `provenance` (modelo del juez, cliVersion, rúbrica) va en metadata del trace.
+ * Liga un ítem del dataset a un trace y publica sus scores. Si `traceId` viene
+ * (trace real de generación con tokens/costo), se reutiliza ese id; si no, se
+ * crea uno sintético (p.ej. dry-run). `provenance` va en metadata del trace.
  */
 export async function recordRunItem(
   lf: Langfuse,
@@ -54,11 +61,13 @@ export async function recordRunItem(
     output: unknown;
     provenance: JudgeProvenance;
     scores: ScoreInput[];
+    traceId?: string | null;
   }
 ): Promise<void> {
   const dataset = await lf.getDataset(DATASET_NAME);
   const datasetItem = dataset.items.find((i) => i.id === args.itemId);
   const trace = lf.trace({
+    id: args.traceId ?? undefined, // reutiliza el trace OTLP real si existe
     name: `eval:${args.runName}`,
     input: args.input,
     output: args.output,
@@ -72,7 +81,8 @@ export async function recordRunItem(
   for (const s of args.scores) {
     trace.score({
       name: s.name,
-      value: s.value,
+      value: s.value as never, // number | string según dataType
+      dataType: s.dataType ?? "NUMERIC",
       comment: s.confidence ? `[${s.confidence}] ${s.comment ?? ""}` : s.comment,
     });
   }
