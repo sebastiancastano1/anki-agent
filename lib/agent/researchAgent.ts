@@ -70,8 +70,10 @@ export type ProgressEvent =
  */
 export async function* runResearchAgent(
   topic: string,
-  count?: number
+  count?: number,
+  modelOverride?: string
 ): AsyncGenerator<ProgressEvent> {
+  const model = modelOverride ?? MODEL;
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     yield { type: "error", message: "Falta ANTHROPIC_API_KEY en el entorno." };
@@ -120,7 +122,7 @@ export async function* runResearchAgent(
         async () => {
           markLastMessageForCache(messages);
           const r = await client.messages.create({
-            model: MODEL,
+            model,
             max_tokens: 8000,
             // Prompt caching: el bloque system + las tools son estables entre
             // turnos y entre runs (TTL 5 min). El breakpoint en system cachea
