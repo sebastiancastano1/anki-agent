@@ -1,0 +1,26 @@
+[
+  {
+    "id": "ambiguous-mercury-001",
+    "topic": "Mercury",
+    "count": 6,
+    "tags": ["ambiguous"],
+    "difficulty": "basic",
+    "notes": "Tema ambiguo: planeta vs elemento vs dios. Buen deck debería desambiguar o cubrir el más probable."
+  },
+  {
+    "id": "niche-recent-001",
+    "topic": "WebGPU compute shaders",
+    "count": 6,
+    "tags": ["niche", "recent", "web"],
+    "difficulty": "advanced",
+    "notes": "Tema nicho/reciente: la factualidad sin referencia será de baja confianza."
+  },
+  {
+    "id": "multi-answer-001",
+    "topic": "Differences between TCP and UDP",
+    "count": 8,
+    "tags": ["comparison", "networking"],
+    "difficulty": "intermediate",
+    "expectedCoverage": ["reliability", "ordering", "connection", "use cases"]
+  }
+]

@@ -1,0 +1,58 @@
+[
+  {
+    "id": "python-generators-basic-001",
+    "topic": "Python generators",
+    "count": 8,
+    "tags": ["python", "programming", "basic"],
+    "difficulty": "basic",
+    "notes": "Enfocar en uso práctico de yield.",
+    "expectedCoverage": ["yield", "lazy evaluation", "generator expressions", "StopIteration"],
+    "referenceFacts": [
+      "yield pausa la función y devuelve un valor, reanudando en la siguiente llamada a next().",
+      "Los generadores son iteradores perezosos (lazy).",
+      "Una generator expression usa paréntesis: (x for x in xs)."
+    ]
+  },
+  {
+    "id": "photosynthesis-basic-001",
+    "topic": "Photosynthesis",
+    "count": 10,
+    "tags": ["biology", "science", "basic"],
+    "difficulty": "basic",
+    "expectedCoverage": ["light reactions", "Calvin cycle", "chlorophyll", "ATP", "CO2"],
+    "referenceFacts": [
+      "La fotosíntesis convierte CO2 y agua en glucosa y oxígeno usando luz.",
+      "Ocurre en los cloroplastos; la clorofila captura la luz.",
+      "El ciclo de Calvin no requiere luz directamente (reacciones independientes de la luz)."
+    ]
+  },
+  {
+    "id": "french-revolution-inter-001",
+    "topic": "Causes of the French Revolution",
+    "count": 10,
+    "tags": ["history", "intermediate"],
+    "difficulty": "intermediate",
+    "expectedCoverage": ["fiscal crisis", "Estates-General", "Enlightenment ideas", "bread prices"]
+  },
+  {
+    "id": "http-status-codes-basic-001",
+    "topic": "HTTP status codes",
+    "count": 12,
+    "tags": ["web", "networking", "basic"],
+    "difficulty": "basic",
+    "referenceFacts": [
+      "200 OK indica éxito.",
+      "404 Not Found: el recurso no existe.",
+      "500 Internal Server Error: fallo del servidor.",
+      "301 es redirección permanente; 302 temporal."
+    ]
+  },
+  {
+    "id": "big-o-notation-inter-001",
+    "topic": "Big-O notation",
+    "count": 8,
+    "tags": ["cs", "algorithms", "intermediate"],
+    "difficulty": "intermediate",
+    "expectedCoverage": ["O(1)", "O(n)", "O(log n)", "O(n^2)", "worst case"]
+  }
+]
