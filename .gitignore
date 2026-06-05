@@ -20,3 +20,6 @@ OPTIMIZATION-LOG.md
 
 # Artefacto regenerable del backfill de Prometheus (ver scripts/backfill-prometheus-from-langfuse.py)
 otel/backfill.openmetrics
+
+# Eval harness raw artifacts
+eval/results/
