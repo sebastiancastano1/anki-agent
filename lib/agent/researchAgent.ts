@@ -1,4 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { trace } from "@opentelemetry/api";
+import * as traceloop from "@traceloop/node-server-sdk";
+import { createHash } from "node:crypto";
 import { SYSTEM_PROMPT, userPrompt } from "./prompts";
 import {
   addCardsJsonSchema,
@@ -79,13 +82,32 @@ export async function* runResearchAgent(
 
   try {
     for (let turn = 0; turn < MAX_TURNS; turn++) {
-      const response = await client.messages.create({
-        model: MODEL,
-        max_tokens: 8000,
-        system: SYSTEM_PROMPT,
-        tools: tools as Anthropic.Tool[],
-        messages,
-      });
+      // Span por turno: cuelga atributos custom y deja el auto-span de Anthropic
+      // (con gen_ai.usage.* tokens) como hijo, replicando el árbol de LIT-22.
+      const response = await traceloop.withTask(
+        { name: `research_turn_${turn}` },
+        async () => {
+          const r = await client.messages.create({
+            model: MODEL,
+            max_tokens: 8000,
+            system: SYSTEM_PROMPT,
+            tools: tools as Anthropic.Tool[],
+            messages,
+          });
+          const span = trace.getActiveSpan();
+          span?.setAttribute(
+            "app.gen_ai.cache_hit",
+            (r.usage.cache_read_input_tokens ?? 0) > 0
+          );
+          span?.setAttribute(
+            "app.gen_ai.prompt_hash",
+            createHash("sha256").update(SYSTEM_PROMPT).digest("hex").slice(0, 16)
+          );
+          span?.setAttribute("app.gen_ai.turn", turn);
+          span?.setAttribute("app.gen_ai.stop_reason", r.stop_reason ?? "");
+          return r;
+        }
+      );
 
       messages.push({ role: "assistant", content: response.content });
 
