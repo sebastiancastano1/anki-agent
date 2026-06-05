@@ -1,7 +1,7 @@
 [
   {
     "id": "ambiguous-mercury-001",
-    "topic": "Mercury",
+    "topic": "Mercurio",
     "count": 6,
     "tags": ["ambiguous"],
     "difficulty": "basic",
@@ -9,7 +9,7 @@
   },
   {
     "id": "niche-recent-001",
-    "topic": "WebGPU compute shaders",
+    "topic": "Compute shaders de WebGPU",
     "count": 6,
     "tags": ["niche", "recent", "web"],
     "difficulty": "advanced",
@@ -17,10 +17,10 @@
   },
   {
     "id": "multi-answer-001",
-    "topic": "Differences between TCP and UDP",
+    "topic": "Diferencias entre TCP y UDP",
     "count": 8,
     "tags": ["comparison", "networking"],
     "difficulty": "intermediate",
-    "expectedCoverage": ["reliability", "ordering", "connection", "use cases"]
+    "expectedCoverage": ["fiabilidad", "orden", "conexión", "casos de uso"]
   }
 ]
