@@ -1,0 +1,196 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "title": "anki-agent · Resumen estratégico (diario)",
+  "uid": "anki-agent-strategic",
+  "schemaVersion": 39,
+  "tags": ["anki-agent", "llm", "estrategico"],
+  "time": { "from": "now-30d", "to": "now" },
+  "refresh": "30m",
+  "templating": {
+    "list": [
+      {
+        "name": "model",
+        "label": "Modelo",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": { "query": "label_values(gen_ai_cost_usd_total, gen_ai_response_model)", "refId": "model" },
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    { "type": "row", "title": "📌 Indicadores clave (rango)", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 } },
+    {
+      "type": "stat", "title": "Costo total",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Gasto total en USD en el rango seleccionado.",
+      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2, "color": { "mode": "fixed", "fixedColor": "green" } } },
+      "options": { "graphMode": "area", "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_cost_usd_total{gen_ai_response_model=~\"$model\"}[$__range]))", "legendFormat": "costo" } ]
+    },
+    {
+      "type": "stat", "title": "Runs",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Total de runs del pipeline de research en el rango.",
+      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0, "color": { "mode": "fixed", "fixedColor": "purple" } } },
+      "options": { "graphMode": "area", "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(traces_span_metrics_calls_total{span_name=\"research_pipeline.workflow\"}[$__range]))", "legendFormat": "runs" } ]
+    },
+    {
+      "type": "stat", "title": "Costo / run",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Costo promedio por run en el rango.",
+      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 4, "color": { "mode": "fixed", "fixedColor": "blue" } } },
+      "options": { "graphMode": "none", "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_cost_usd_total[$__range])) / clamp_min(sum(increase(traces_span_metrics_calls_total{span_name=\"research_pipeline.workflow\"}[$__range])), 1)", "legendFormat": "USD/run" } ]
+    },
+    {
+      "type": "stat", "title": "Cache-hit rate",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "% de turnos servidos desde caché en el rango.",
+      "gridPos": { "h": 5, "w": 4, "x": 12, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 1, "min": 0, "max": 100, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "yellow", "value": 50 }, { "color": "green", "value": 80 } ] } } },
+      "options": { "graphMode": "area", "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "100 * (sum(increase(traces_span_metrics_calls_total{app_gen_ai_cache_hit=\"true\"}[$__range])) or vector(0)) / clamp_min(sum(increase(traces_span_metrics_calls_total{app_gen_ai_cache_hit=~\"true|false\"}[$__range])), 1)", "legendFormat": "cache-hit" } ]
+    },
+    {
+      "type": "stat", "title": "Tokens totales",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Suma de todos los tokens (input + output + caché) en el rango.",
+      "gridPos": { "h": 5, "w": 4, "x": 16, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 1, "color": { "mode": "fixed", "fixedColor": "orange" } } },
+      "options": { "graphMode": "area", "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_tokens_input_total{gen_ai_response_model=~\"$model\"}[$__range])) + sum(increase(gen_ai_tokens_output_total{gen_ai_response_model=~\"$model\"}[$__range])) + sum(increase(gen_ai_tokens_cache_read_total{gen_ai_response_model=~\"$model\"}[$__range])) + sum(increase(gen_ai_tokens_cache_write_total{gen_ai_response_model=~\"$model\"}[$__range]))", "legendFormat": "tokens" } ]
+    },
+    {
+      "type": "stat", "title": "Ahorro por caché",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Ahorro estimado: tokens leídos de caché facturados a $0.30/1M en vez de $3/1M (input). Diferencia = (3.0 - 0.30) * cache_read / 1M.",
+      "gridPos": { "h": 5, "w": 4, "x": 20, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2, "color": { "mode": "fixed", "fixedColor": "green" } } },
+      "options": { "graphMode": "area", "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_tokens_cache_read_total{gen_ai_response_model=~\"$model\"}[$__range])) * (3.0 - 0.30) / 1000000", "legendFormat": "ahorro" } ]
+    },
+
+    { "type": "row", "title": "📈 Tendencia diaria", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 } },
+    {
+      "type": "timeseries", "title": "Costo por día (USD)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Gasto agregado por día. Cada barra = un día.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
+      "interval": "1d",
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2, "custom": { "drawStyle": "bars", "fillOpacity": 70, "lineWidth": 1 }, "color": { "mode": "fixed", "fixedColor": "green" } } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_cost_usd_total{gen_ai_response_model=~\"$model\"}[$__interval]))", "legendFormat": "USD/día" } ]
+    },
+    {
+      "type": "timeseries", "title": "Runs por día",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Volumen de runs del pipeline por día.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 },
+      "interval": "1d",
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0, "custom": { "drawStyle": "bars", "fillOpacity": 70, "lineWidth": 1 }, "color": { "mode": "fixed", "fixedColor": "purple" } } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(traces_span_metrics_calls_total{span_name=\"research_pipeline.workflow\"}[$__interval]))", "legendFormat": "runs/día" } ]
+    },
+
+    {
+      "type": "timeseries", "title": "Tokens por día y tipo",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Composición diaria de tokens. cache_read alto = buen aprovechamiento de caché.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "interval": "1d",
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "fillOpacity": 80, "lineWidth": 1, "stacking": { "mode": "normal" } } } },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_tokens_input_total{gen_ai_response_model=~\"$model\"}[$__interval]))", "legendFormat": "input" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_tokens_output_total{gen_ai_response_model=~\"$model\"}[$__interval]))", "legendFormat": "output" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_tokens_cache_read_total{gen_ai_response_model=~\"$model\"}[$__interval]))", "legendFormat": "cache_read" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_tokens_cache_write_total{gen_ai_response_model=~\"$model\"}[$__interval]))", "legendFormat": "cache_write" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Costo por día y componente (USD)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "De dónde viene el gasto cada día.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "interval": "1d",
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 3, "custom": { "drawStyle": "bars", "fillOpacity": 80, "lineWidth": 1, "stacking": { "mode": "normal" } } } },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_cost_input_usd_total{gen_ai_response_model=~\"$model\"}[$__interval]))", "legendFormat": "input" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_cost_output_usd_total{gen_ai_response_model=~\"$model\"}[$__interval]))", "legendFormat": "output" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_cost_cache_read_usd_total{gen_ai_response_model=~\"$model\"}[$__interval]))", "legendFormat": "cache_read" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_cost_cache_write_usd_total{gen_ai_response_model=~\"$model\"}[$__interval]))", "legendFormat": "cache_write" }
+      ]
+    },
+
+    { "type": "row", "title": "💰 Reparto (rango)", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 } },
+    {
+      "type": "piechart", "title": "Costo por modelo",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Reparto del costo entre modelos.",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 4 } },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] }, "pieType": "donut", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum by (gen_ai_response_model) (increase(gen_ai_cost_usd_total[$__range]))", "legendFormat": "{{gen_ai_response_model}}" } ]
+    },
+    {
+      "type": "piechart", "title": "Costo por componente",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Input / output / cache_read / cache_write.",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 24 },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 4 } },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] }, "pieType": "donut", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_cost_input_usd_total{gen_ai_response_model=~\"$model\"}[$__range]))", "legendFormat": "input" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_cost_output_usd_total{gen_ai_response_model=~\"$model\"}[$__range]))", "legendFormat": "output" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_cost_cache_read_usd_total{gen_ai_response_model=~\"$model\"}[$__range]))", "legendFormat": "cache_read" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_cost_cache_write_usd_total{gen_ai_response_model=~\"$model\"}[$__range]))", "legendFormat": "cache_write" }
+      ]
+    },
+    {
+      "type": "piechart", "title": "Tokens por tipo",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Composición total de tokens en el rango.",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 24 },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] }, "pieType": "donut", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_tokens_input_total{gen_ai_response_model=~\"$model\"}[$__range]))", "legendFormat": "input" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_tokens_output_total{gen_ai_response_model=~\"$model\"}[$__range]))", "legendFormat": "output" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_tokens_cache_read_total{gen_ai_response_model=~\"$model\"}[$__range]))", "legendFormat": "cache_read" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(gen_ai_tokens_cache_write_total{gen_ai_response_model=~\"$model\"}[$__range]))", "legendFormat": "cache_write" }
+      ]
+    },
+
+    { "type": "row", "title": "✅ Calidad y rendimiento", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 } },
+    {
+      "type": "timeseries", "title": "p95 latencia del pipeline (tendencia)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Evolución de la latencia p95 de un run completo.",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 33 },
+      "fieldConfig": { "defaults": { "unit": "ms", "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 2 } } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.95, sum by (le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_name=\"research_pipeline.workflow\"}[$__rate_interval])))", "legendFormat": "p95" } ]
+    },
+    {
+      "type": "timeseries", "title": "Error rate por día (%)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Porcentaje diario de spans con error. Idealmente plano en 0.",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 33 },
+      "interval": "1d",
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "min": 0, "custom": { "drawStyle": "bars", "fillOpacity": 70, "lineWidth": 1 }, "color": { "mode": "fixed", "fixedColor": "red" } } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "100 * (sum(increase(traces_span_metrics_calls_total{status_code=\"STATUS_CODE_ERROR\"}[$__interval])) or vector(0)) / clamp_min(sum(increase(traces_span_metrics_calls_total[$__interval])), 1)", "legendFormat": "error %" } ]
+    }
+  ]
+}
