@@ -51,3 +51,38 @@ output, scores, provenance del juez (modelo, cliVersion, rubricVersion). Gitigno
 - `schemaRetries` del agente no está expuesto por el generador todavía (queda en 0).
 - `--repeat` actualmente toma el **primer juicio válido**, no promedia N juicios. El
   promedio para reducir varianza queda como extensión (el código está preparado para ello).
+
+## Integración profunda con Langfuse
+
+### Trace real + costo
+La generación se instrumenta con OpenTelemetry (`otel.ts`) y exporta el span real del agente
+(tokens/costo) a Langfuse, que se **reutiliza** como trace del ítem del run (`runAgent` devuelve
+`traceId`). Para que el costo aparezca, levanta el Collector:
+```bash
+npm run obs:langfuse:up
+```
+Sin el Collector la integración **degrada con gracia**: el run y los scores se publican igual,
+solo que con un trace sintético (sin tokens/costo en lugar del span real).
+
+### Tipos de score
+- `schema_valid` → **BOOLEAN** (pasa/falla el schema Zod).
+- `deck.coverage.confidence` / `deck.redundancy.confidence` → **CATEGORICAL** (low/medium/high).
+- El resto (`card.*`, `deck.coverage`, `deck.redundancy`, `overall_score`, `count_ratio`,
+  `near_duplicates`) son **NUMERIC**.
+
+### Anotación humana (Human Annotation)
+Permite comparar el juicio del LLM contra etiquetas humanas:
+1. En la UI de Langfuse crea una **Annotation Queue** seleccionando los score configs `human.*`.
+2. Encola una muestra de traces del run:
+```bash
+npm run eval -- --run-name baseline --annotate-sample 5 --annotation-queue-id <id>
+```
+3. Anota los traces en la UI (los `human.*` configs aparecen en la cola).
+4. Compara `human.overall` vs `overall_score` en **Scores → Analytics** para validar el juez.
+
+El `--annotate-sample` requiere `--annotation-queue-id` (o `LANGFUSE_ANNOTATION_QUEUE_ID`); sin
+él se omite con un warning. `ensureScoreConfigs()` crea los configs `human.*` si faltan.
+
+### expectedOutput
+Cada ítem del dataset publica su `expectedOutput` con `referenceFacts` (hechos de referencia
+para anclar al juez) y `expectedCoverage` (subtemas que el deck debería cubrir).

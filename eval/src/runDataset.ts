@@ -11,7 +11,9 @@ import {
   type JudgeExec,
 } from "./judge";
 import { overallScore, meanCriterion, meanStd } from "./aggregate";
-import { makeClient, upsertDataset, recordRunItem } from "./langfuse";
+import { makeClient, upsertDataset, recordRunItem, type ScoreInput } from "./langfuse";
+import { initEvalTelemetry, flushEvalTelemetry } from "./otel";
+import { ensureScoreConfigs, enqueueForAnnotation } from "./annotation";
 import type {
   CardJudgement,
   EvalItem,
@@ -36,6 +38,8 @@ const REPEAT = Number(arg("repeat", "1"));
 const DRY_RUN = hasFlag("dry-run");
 const CONCURRENCY = Number(arg("concurrency", "3"));
 const LIMIT = arg("limit") ? Number(arg("limit")) : undefined;
+const ANNOTATE_SAMPLE = Number(arg("annotate-sample", "0"));
+const ANNOTATION_QUEUE_ID = arg("annotation-queue-id") ?? process.env.LANGFUSE_ANNOTATION_QUEUE_ID;
 
 // ---- juez: real o mock (dry-run) -----------------------------------------
 const MOCK_CARD = JSON.stringify({
@@ -92,6 +96,7 @@ type ItemSummary = {
   agentError: string | null;
   judgeFailed: boolean;
   overall: number | null;
+  traceId: string | null;
 };
 
 async function processItem(item: EvalItem): Promise<ItemSummary> {
@@ -99,7 +104,7 @@ async function processItem(item: EvalItem): Promise<ItemSummary> {
   const resultsDir = join(process.cwd(), "eval/results", RUN_NAME);
   mkdirSync(resultsDir, { recursive: true });
 
-  const agentRes = await runAgent(item.topic, item.count, AGENT_MODEL);
+  const agentRes = await runAgent(item.topic, item.count, AGENT_MODEL, item.id);
   const determ = runDeterministic(agentRes.deck, item.count);
 
   const provenance: JudgeProvenance = {
@@ -127,7 +132,7 @@ async function processItem(item: EvalItem): Promise<ItemSummary> {
   }
 
   let overall: number | null = null;
-  const scores: Array<{ name: string; value: number; comment?: string; confidence?: string }> = [];
+  const scores: ScoreInput[] = [];
 
   if (agentRes.deck && cardJudgements.length > 0) {
     const deckJ = await judgeDeck(agentRes.deck, item, JUDGE_MODEL, exec);
@@ -146,6 +151,8 @@ async function processItem(item: EvalItem): Promise<ItemSummary> {
     }
     scores.push({ name: "deck.coverage", value: deckJudgement.coverage.score, confidence: deckJudgement.coverage.confidence });
     scores.push({ name: "deck.redundancy", value: deckJudgement.redundancy.score, confidence: deckJudgement.redundancy.confidence });
+    scores.push({ name: "deck.coverage.confidence", value: deckJudgement.coverage.confidence, dataType: "CATEGORICAL" });
+    scores.push({ name: "deck.redundancy.confidence", value: deckJudgement.redundancy.confidence, dataType: "CATEGORICAL" });
 
     // overall: usa promedio de tarjetas como "tarjeta representativa"
     const avgCard = Object.fromEntries(
@@ -156,7 +163,7 @@ async function processItem(item: EvalItem): Promise<ItemSummary> {
   }
 
   // scores deterministas
-  scores.push({ name: "schema_valid", value: determ.schemaValid ? 1 : 0 });
+  scores.push({ name: "schema_valid", value: determ.schemaValid ? 1 : 0, dataType: "BOOLEAN" });
   scores.push({ name: "count_ratio", value: determ.count.ratio });
   scores.push({ name: "near_duplicates", value: determ.duplication.nearDuplicatePairs.length });
 
@@ -176,6 +183,7 @@ async function processItem(item: EvalItem): Promise<ItemSummary> {
       output: agentRes.deck,
       provenance,
       scores,
+      traceId: agentRes.traceId,
     });
   }
 
@@ -184,6 +192,7 @@ async function processItem(item: EvalItem): Promise<ItemSummary> {
     agentError: agentRes.error,
     judgeFailed,
     overall,
+    traceId: agentRes.traceId,
   };
 }
 
@@ -202,6 +211,8 @@ async function main() {
       `items=${items.length} dryRun=${DRY_RUN}`
   );
 
+  if (!DRY_RUN) initEvalTelemetry();
+
   if (!DRY_RUN) {
     const lf = makeClient();
     await upsertDataset(lf, items);
@@ -209,6 +220,24 @@ async function main() {
   }
 
   const summaries = await mapPool(items, CONCURRENCY, processItem);
+
+  if (!DRY_RUN) await flushEvalTelemetry();
+
+  if (!DRY_RUN && ANNOTATE_SAMPLE > 0) {
+    if (!ANNOTATION_QUEUE_ID) {
+      console.warn(
+        "⚠️  --annotate-sample requiere --annotation-queue-id (o LANGFUSE_ANNOTATION_QUEUE_ID). Omitido."
+      );
+    } else {
+      await ensureScoreConfigs();
+      const sample = summaries
+        .map((s) => s.traceId)
+        .filter((t): t is string => !!t)
+        .slice(0, ANNOTATE_SAMPLE);
+      await enqueueForAnnotation(ANNOTATION_QUEUE_ID, sample);
+      console.log(`Encolados ${sample.length} traces para anotación humana (queue ${ANNOTATION_QUEUE_ID}).`);
+    }
+  }
 
   // resumen en consola
   const overalls = summaries.map((s) => s.overall).filter((x): x is number => x !== null);
