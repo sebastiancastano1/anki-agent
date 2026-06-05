@@ -19,6 +19,37 @@ const MAX_TURNS = 20;
 
 export type ResearchPhase = "searching" | "reading" | "generating" | "writing";
 
+/**
+ * Caché incremental del historial de conversación. En cada turno el prefijo
+ * (tools + system + mensajes) crece porque los resultados de web_search se
+ * anexan y se reenvían completos — ahí está el grueso del costo de input.
+ * Marcamos el último bloque del último mensaje con `cache_control: ephemeral`:
+ * Anthropic reusa el prefijo cacheado del turno anterior (match por prefijo) y
+ * escribe uno nuevo más largo. Limpiamos breakpoints previos para no superar el
+ * máximo de 4 que permite la API.
+ */
+function markLastMessageForCache(messages: Anthropic.MessageParam[]): void {
+  const ephemeral = { type: "ephemeral" as const };
+  for (const m of messages) {
+    if (Array.isArray(m.content)) {
+      for (const block of m.content as Array<{ cache_control?: unknown }>) {
+        if (block.cache_control) delete block.cache_control;
+      }
+    }
+  }
+  const last = messages[messages.length - 1];
+  if (!last) return;
+  if (typeof last.content === "string") {
+    last.content = [
+      { type: "text", text: last.content, cache_control: ephemeral },
+    ];
+  } else {
+    const blocks = last.content as Array<{ cache_control?: unknown }>;
+    const tail = blocks[blocks.length - 1];
+    if (tail) tail.cache_control = ephemeral;
+  }
+}
+
 export type DoneDeck = GeneratedCardSet & { studyDoc: string | null };
 
 export type ProgressEvent =
@@ -54,7 +85,7 @@ export async function* runResearchAgent(
     {
       name: "add_cards",
       description:
-        "Add a small batch (1-3) of freshly verified flashcards to the deck. Call repeatedly as you verify more.",
+        "Add freshly verified flashcards to the deck. Prefer a single call with ALL verified cards; avoid many small calls (each is an extra sequential round-trip).",
       input_schema: addCardsJsonSchema,
     },
     {
@@ -87,10 +118,20 @@ export async function* runResearchAgent(
       const response = await traceloop.withTask(
         { name: `research_turn_${turn}` },
         async () => {
+          markLastMessageForCache(messages);
           const r = await client.messages.create({
             model: MODEL,
             max_tokens: 8000,
-            system: SYSTEM_PROMPT,
+            // Prompt caching: el bloque system + las tools son estables entre
+            // turnos y entre runs (TTL 5 min). El breakpoint en system cachea
+            // todo el prefijo (tools + system); el cache-read cuesta ~10x menos.
+            system: [
+              {
+                type: "text",
+                text: SYSTEM_PROMPT,
+                cache_control: { type: "ephemeral" },
+              },
+            ],
             tools: tools as Anthropic.Tool[],
             messages,
           });

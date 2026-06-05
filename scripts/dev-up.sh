@@ -21,7 +21,7 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
-if ! grep -q '^ANTHROPIC_API_KEY=sk-' .env 2>/dev/null; then
+if ! grep -q '^ANTHROPIC_API_KEY="\?sk-' .env 2>/dev/null; then
   echo "⚠️  ANTHROPIC_API_KEY no parece estar configurada en .env (debe empezar por sk-)."
 fi
 
@@ -41,7 +41,9 @@ if [ "$OBS" = "1" ]; then
   if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
     if [ "$LANGFUSE" = "1" ]; then
       echo "📈 Levantando observabilidad COMPLETA (Grafana :3002, Prometheus :9090, Collector :4318, Langfuse :3001)…"
-      npm run obs:langfuse:up
+      # WSL2/Docker Desktop a veces deja bind-mounts cacheados "stale" y el Collector
+      # falla al montar collector-config.yaml. Recrear el contenedor lo evita.
+      npm run obs:langfuse:up -- --force-recreate
       echo "   → Grafana:    http://localhost:3002"
       echo "   → Prometheus: http://localhost:9090"
       echo "   → Langfuse:   http://localhost:3001"
