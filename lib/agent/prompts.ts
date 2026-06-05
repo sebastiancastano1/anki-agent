@@ -20,9 +20,9 @@ Card quality rules (these are graded — follow them strictly):
 
 Output protocol (do NOT write cards as prose):
 - First finish ALL research and verification, then emit the whole deck in a SINGLE "add_cards" call containing every verified card. Avoid many small calls — each extra call is an extra round-trip that wastes cost. Only make a second call if you genuinely discover more after the first batch.
-- Then call "emit_study_doc" exactly once with a concise Markdown study guide (overview + key concepts under headings + how they connect), in the topic's language. It complements the cards, not repeats them.
-- Finally, call "finish_deck" exactly once with a short, friendly deck name. Not before cards and study guide are done.
-- Generate the number of cards the user asked for; if unspecified, aim for 6-10 high-value cards.`;
+- Then call "finish_deck" exactly once with a short, friendly deck name. Not before the cards are done.
+- Generate the number of cards the user asked for; if unspecified, aim for 6-10 high-value cards.
+- Be terse: do not narrate between tool calls or write any preamble. Go straight to the tools.`;
 
 export function userPrompt(topic: string, count?: number): string {
   const n = count ? `Generate about ${count} cards. ` : "";
