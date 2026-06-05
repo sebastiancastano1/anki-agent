@@ -28,6 +28,7 @@ export type AgentRunResult = {
   studyDoc: string | null;
   process: ProcessMetrics;
   error: string | null;
+  traceId: string | null;
   events: unknown[];
 };
 
