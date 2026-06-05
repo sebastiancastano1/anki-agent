@@ -46,6 +46,42 @@ research_pipeline           (workflow — un run)
    └─ anthropic.chat        (auto-span — gen_ai.usage.* + app.cost.* inyectado por el Collector)
 ```
 
+## Segunda fuente: Langfuse (observabilidad LLM)
+
+Además de Grafana (métricas + trazas), puedes mandar **el mismo span** a Langfuse
+vía *fan-out del Collector* (exporter `otlphttp/langfuse`), sin tocar la app:
+
+```
+                                   ┌─▶ tempo + prometheus → grafana :3000   (fuente 1)
+app ──OTLP:4318──▶ otel-collector ─┤
+                                   └─▶ langfuse-web :3001                    (fuente 2)
+```
+
+Arranque en **dos pasos** (Langfuse necesita un proyecto antes de poder autenticar):
+
+1. Copia las vars `LANGFUSE_*` de `.env.example` a `.env` y pon secretos reales
+   (`openssl rand -hex 32`). Deja `LANGFUSE_OTEL_AUTH` vacío por ahora y levanta:
+
+   ```bash
+   cd otel
+   docker compose -f docker-compose.yml -f docker-compose.langfuse.yml up -d
+   ```
+
+2. Abre **http://localhost:3001**, crea cuenta + organización + proyecto, y copia
+   las API keys (public + secret). Calcula el header y reinicia el Collector:
+
+   ```bash
+   echo -n 'pk-lf-xxxx:sk-lf-xxxx' | base64 -w0    # → pega en LANGFUSE_OTEL_AUTH del .env
+   docker compose -f docker-compose.yml -f docker-compose.langfuse.yml up -d otel-collector
+   ```
+
+Genera un mazo en `/research` y verás la MISMA traza en Grafana (Tempo) y en
+Langfuse (sección *Tracing*). Mientras `LANGFUSE_OTEL_AUTH` esté vacío, el
+exporter falla en silencio por span y el resto del fan-out (Tempo/Prometheus) sigue.
+
+> **Puertos:** Langfuse UI en `:3001` (Grafana usa `:3000`). El stack añade
+> postgres/clickhouse/redis/minio — es pesado, levántalo solo cuando lo uses.
+
 ## Cambiar precios
 
 Editar `collector-config.yaml` (processor `transform/llm_cost`) y reiniciar el

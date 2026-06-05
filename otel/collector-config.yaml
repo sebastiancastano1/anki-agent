@@ -74,12 +74,24 @@ exporters:
     endpoint: 0.0.0.0:8889
     enable_open_metrics: true
 
+  # --- Fan-out a Langfuse (segunda fuente, observabilidad LLM) ---
+  # El MISMO span va también a Langfuse, sin tocar la app. Demuestra el
+  # desacople instrumentación <-> backend. Langfuse exige auth: header Basic
+  # con base64(public_key:secret_key), inyectado por env (LANGFUSE_OTEL_AUTH).
+  # Solo activo cuando se levanta el stack con docker-compose.langfuse.yml.
+  otlphttp/langfuse:
+    endpoint: http://langfuse-web:3000/api/public/otel
+    headers:
+      Authorization: "Basic ${env:LANGFUSE_OTEL_AUTH:-}"
+
 service:
   pipelines:
     traces:
       receivers: [otlp]
       processors: [transform/llm_cost, batch]
-      exporters: [otlp/tempo, spanmetrics]
+      # Si LANGFUSE_OTEL_AUTH está vacío (stack Langfuse no levantado), el
+      # exporter falla silenciosamente por span y el resto del fan-out sigue.
+      exporters: [otlp/tempo, otlphttp/langfuse, spanmetrics]
     metrics:
       receivers: [spanmetrics]
       processors: [batch]
