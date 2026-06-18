@@ -34,8 +34,12 @@ export const studyDocSchema = z.object({
 
 export type AddCardsInput = z.infer<typeof addCardsSchema>;
 
+// NOTE: `additionalProperties: false` and the absence of `minItems`/`minLength`
+// are required by Anthropic strict tool use (`strict: true`). The Zod schemas
+// still enforce the min(1) constraints client-side after the model responds.
 const cardJsonSchema = {
   type: "object" as const,
+  additionalProperties: false,
   properties: {
     front: { type: "string", description: "The question on the front of the card" },
     back: { type: "string", description: "The concise, accurate answer" },
@@ -51,12 +55,12 @@ const cardJsonSchema = {
 // JSON Schemas for the Anthropic tool inputs (kept in sync with the Zod schemas).
 export const addCardsJsonSchema = {
   type: "object" as const,
+  additionalProperties: false,
   properties: {
     cards: {
       type: "array",
-      description: "1-3 freshly verified cards to add to the deck now",
+      description: "All freshly verified cards to add to the deck now",
       items: cardJsonSchema,
-      minItems: 1,
     },
   },
   required: ["cards"],
@@ -64,6 +68,7 @@ export const addCardsJsonSchema = {
 
 export const finishDeckJsonSchema = {
   type: "object" as const,
+  additionalProperties: false,
   properties: {
     deckName: { type: "string", description: "A short, friendly name for the deck" },
   },

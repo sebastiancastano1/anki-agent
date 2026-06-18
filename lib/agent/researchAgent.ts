@@ -8,8 +8,6 @@ import {
   addCardsSchema,
   finishDeckJsonSchema,
   finishDeckSchema,
-  studyDocJsonSchema,
-  studyDocSchema,
   type GeneratedCard,
   type GeneratedCardSet,
 } from "./schema";
@@ -83,23 +81,23 @@ export async function* runResearchAgent(
   const client = new Anthropic({ apiKey });
 
   const tools: Anthropic.Tool[] | any[] = [
-    { type: "web_search_20250305", name: "web_search", max_uses: 4 },
+    // web_search_20260209 añade filtrado dinámico (recorta resultados antes de
+    // entrar al contexto → menos tokens de input re-enviados cada turno).
+    { type: "web_search_20260209", name: "web_search", max_uses: 4 },
     {
       name: "add_cards",
       description:
         "Add freshly verified flashcards to the deck. Prefer a single call with ALL verified cards; avoid many small calls (each is an extra sequential round-trip).",
       input_schema: addCardsJsonSchema,
-    },
-    {
-      name: "emit_study_doc",
-      description:
-        "Write the study guide for the topic in Markdown. Call exactly once, after the cards and before finish_deck.",
-      input_schema: studyDocJsonSchema,
+      // strict: el modelo no puede salirse del schema → desaparecen los
+      // reintentos por validación Zod (cada uno costaba un turno completo).
+      strict: true,
     },
     {
       name: "finish_deck",
       description: "Finish the deck with a friendly name. Call exactly once when done.",
       input_schema: finishDeckJsonSchema,
+      strict: true,
     },
   ];
 
@@ -123,7 +121,9 @@ export async function* runResearchAgent(
           markLastMessageForCache(messages);
           const r = await client.messages.create({
             model,
-            max_tokens: 8000,
+            // El output es el token más caro (~5x input). 6-10 cards atómicas
+            // caben de sobra en 3000; recortar aquí ataca el costo dominante.
+            max_tokens: 3000,
             // Prompt caching: el bloque system + las tools son estables entre
             // turnos y entre runs (TTL 5 min). El breakpoint en system cachea
             // todo el prefijo (tools + system); el cache-read cuesta ~10x menos.
@@ -195,25 +195,6 @@ export async function* runResearchAgent(
               tool_use_id: block.id,
               is_error: true,
               content: `Invalid card data: ${parsed.error.message}. Please call add_cards again with valid data (each card needs front, back and a source URL).`,
-            });
-          }
-        } else if (block.type === "tool_use" && block.name === "emit_study_doc") {
-          yield { type: "phase", phase: "writing" };
-          const parsed = studyDocSchema.safeParse(block.input);
-          if (parsed.success) {
-            studyDoc = parsed.data.markdown;
-            yield { type: "study_doc", markdown: studyDoc };
-            toolResults.push({
-              type: "tool_result",
-              tool_use_id: block.id,
-              content: "Study guide saved. Now call finish_deck with a friendly name.",
-            });
-          } else {
-            toolResults.push({
-              type: "tool_result",
-              tool_use_id: block.id,
-              is_error: true,
-              content: `Invalid study guide: ${parsed.error.message}. Call emit_study_doc again with non-empty Markdown.`,
             });
           }
         } else if (block.type === "tool_use" && block.name === "finish_deck") {

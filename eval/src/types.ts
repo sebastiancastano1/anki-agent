@@ -22,6 +22,22 @@ export type ProcessMetrics = {
   endedInError: boolean;
 };
 
+/**
+ * Uso/costo reportado por el generador. Lo usa el runner CLI (`claude -p`), que
+ * no produce span OTel: el costo no lo calcula el Collector sino que viene en el
+ * propio envelope del CLI. Es el costo "equivalente API" que el CLI computa
+ * (aunque se facture contra la suscripción) → sirve para comparar lado a lado
+ * con los runs del runner SDK. El runner SDK lo deja undefined (su costo va por
+ * el trace OTel real).
+ */
+export type RunUsage = {
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  webSearches: number;
+};
+
 /** Resultado de ejecutar el agente sobre un ítem. */
 export type AgentRunResult = {
   deck: GeneratedCardSet | null;
@@ -30,6 +46,7 @@ export type AgentRunResult = {
   error: string | null;
   traceId: string | null;
   events: unknown[];
+  usage?: RunUsage;
 };
 
 /** Resultado de los checks deterministas. */
